@@ -24,6 +24,7 @@ define packagecloud::repo(
   $master_token = undef,
   $priority = undef,
   $server_address = "https://packagecloud.io",
+  $update_on_every_run = true,
 ) {
   validate_string($type)
   validate_string($master_token)
@@ -59,6 +60,14 @@ define packagecloud::repo(
         $repo_url = "${base_url}/${repo_name}/${osname}"
         $distribution =  $::lsbdistcodename
 
+        if $update_on_every_run != true {
+          $apt_key_add_unless = 'apt-key list|grep ops@packagecloud.io'
+          $apt_get_update_creates = "/etc/apt/sources.list.d/${normalized_name}.list"
+        } else {
+          $apt_key_add_unless = undef
+          $apt_get_update_creates = undef
+        }
+        
         file { "${normalized_name}":
           path    => "/etc/apt/sources.list.d/${normalized_name}.list",
           ensure  => file,
@@ -70,6 +79,7 @@ define packagecloud::repo(
           command => "wget -qO - ${server_address}/gpg.key | apt-key add -",
           path => "/usr/bin/:/bin/",
           require => File["${normalized_name}"],
+          unless => $apt_key_add_unless,
         }
 
         exec { "apt_get_update_${normalized_name}":
